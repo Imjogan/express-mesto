@@ -1,73 +1,97 @@
 const Card = require("../models/card");
+const {
+  defaultError,
+  incorrectCardDataError,
+  cardNonExistentError,
+  incorrectLikeDataError,
+  incorrectDislikeDataError,
+  statusCodeOk,
+  statusCodeCreated,
+  statusCodeBadRequest,
+  statusCodeNotFound,
+  statusCodeInternalServerError,
+} = require("../utils/errors");
 
 module.exports.getCards = (req, res) => {
-  Card.find({})
-    .populate(["owner", "likes"])
-    .then((cards) => res.send(cards))
-    .catch((err) => {
-      res.status(500).send({ message: "Произошла ошибка." });
-    });
+  (async () => {
+    try {
+      const cards = await Card.find({}).populate(["owner", "likes"]);
+      res.status(statusCodeOk).send(cards);
+    } catch (err) {
+      res.status(statusCodeInternalServerError).send({ message: defaultError });
+    }
+  })();
 };
 
 module.exports.createCard = (req, res) => {
   const { name, link } = req.body;
-  Card.create({ name, link, owner: req.user._id })
-    .then((card) => res.send(card))
-    .catch((err) => {
+  (async () => {
+    try {
+      const card = await Card.create({ name, link, owner: req.user._id });
+      res.status(statusCodeCreated).send(card);
+    } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(400).send({
-          message: "Переданы некорректные данные при создании карточки.",
+        return res.status(statusCodeBadRequest).send({
+          message: incorrectCardDataError,
         });
       }
-      res.status(500).send({ message: "Произошла ошибка" });
-    });
+      res.status(statusCodeInternalServerError).send({ message: defaultError });
+    }
+  })();
 };
 
 module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndRemove(req.params.cardId)
-    .then((card) => res.send(card))
-    .catch((err) => {
+  (async () => {
+    try {
+      const card = await Card.findByIdAndRemove(req.params.cardId);
+      res.status(statusCodeOk).send(card);
+    } catch (err) {
       if (err.name === "CastError") {
-        return res.status(404).send({
-          message: "Карточка с указанным _id не найдена.",
+        return res.status(statusCodeNotFound).send({
+          message: cardNonExistentError,
         });
       }
-      res.status(500).send({ message: "Произошла ошибка" });
-    });
+      res.status(statusCodeInternalServerError).send({ message: defaultError });
+    }
+  })();
 };
 
 module.exports.likeCard = (req, res) => {
-  Card.findByIdAndUpdate(
-    req.params.cardId,
-    { $addToSet: { likes: req.user._id } },
-    { new: true }
-  )
-    .populate("likes")
-    .then((card) => res.send(card))
-    .catch((err) => {
+  (async () => {
+    try {
+      const card = await Card.findByIdAndUpdate(
+        req.params.cardId,
+        { $addToSet: { likes: req.user._id } },
+        { new: true }
+      ).populate("likes");
+      res.status(statusCodeOk).send(card);
+    } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(400).send({
-          message: "Переданы некорректные данные для постановки лайка.",
+        return res.status(statusCodeBadRequest).send({
+          message: incorrectLikeDataError,
         });
       }
-      res.status(500).send({ message: "Произошла ошибка" });
-    });
+      res.status(statusCodeInternalServerError).send({ message: defaultError });
+    }
+  })();
 };
 
 module.exports.dislikeCard = (req, res) => {
-  Card.findByIdAndUpdate(
-    req.params.cardId,
-    { $pull: { likes: req.user._id } },
-    { new: true }
-  )
-    .populate("likes")
-    .then((card) => res.send(card))
-    .catch((err) => {
+  (async () => {
+    try {
+      const card = await Card.findByIdAndUpdate(
+        req.params.cardId,
+        { $pull: { likes: req.user._id } },
+        { new: true }
+      ).populate("likes");
+      res.status(statusCodeOk).send(card);
+    } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(400).send({
-          message: "Переданы некорректные данные для снятия лайка.",
+        return res.status(statusCodeBadRequest).send({
+          message: incorrectDislikeDataError,
         });
       }
-      res.status(500).send({ message: "Произошла ошибка" });
-    });
+      res.status(statusCodeInternalServerError).send({ message: defaultError });
+    }
+  })();
 };

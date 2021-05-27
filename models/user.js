@@ -1,26 +1,25 @@
 const mongoose = require("mongoose");
+const { minLength, maxLength, regUrl } = require("../utils/constants");
 
 const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
-      minlength: 2,
-      maxlength: 30,
+      minlength: minLength,
+      maxlength: maxLength,
     },
     about: {
       type: String,
       required: true,
-      minlength: 2,
-      maxlength: 30,
+      minlength: minLength,
+      maxlength: maxLength,
     },
     avatar: {
       type: String,
       validate: {
         validator(string) {
-          return /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/.test(
-            string
-          );
+          return regUrl(string);
         },
         message: "Вы должны указать ссылку",
       },

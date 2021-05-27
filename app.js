@@ -1,3 +1,8 @@
+const {
+  requestedResourceNotFoundError,
+  statusCodeNotFound,
+} = require("./utils/errors");
+const { mongoosePreset } = require("./utils/constants");
 const path = require("path");
 const express = require("express");
 const mongoose = require("mongoose");
@@ -8,11 +13,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-mongoose.connect("mongodb://localhost:27017/mestodb", {
-  useNewUrlParser: true,
-  useCreateIndex: true,
-  useFindAndModify: false,
-});
+mongoose.connect("mongodb://localhost:27017/mestodb", mongoosePreset);
 
 // хардкод
 app.use((req, res, next) => {
@@ -27,7 +28,9 @@ app.use("/users", require("./routes/users"));
 app.use("/cards", require("./routes/cards"));
 
 app.use((req, res) => {
-  res.status(404).send({ message: "Запрашиваемый ресурс не найден" });
+  res
+    .status(statusCodeNotFound)
+    .send({ message: requestedResourceNotFoundError });
 });
 
 app.use(express.static(path.join(__dirname, "public")));
