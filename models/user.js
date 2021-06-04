@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { minLength, maxLength, regUrl } = require("../utils/constants");
+const validator = require('validator');
 
 const userSchema = new mongoose.Schema(
   {
@@ -25,6 +26,20 @@ const userSchema = new mongoose.Schema(
       },
       required: true,
     },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      validate: {
+        validator(string) {
+          return validator.isEmail(string);
+        }
+      }
+    },
+    password: {
+      type: String,
+      required: true,
+    }
   },
   { versionKey: false }
 );

@@ -23,7 +23,8 @@
     "eslint-config-airbnb-base": "^14.2.1",
     "eslint-plugin-import": "^2.23.3",
     "express": "^4.17.1",
-    "mongoose": "^5.12.11"
+    "mongoose": "^5.12.11",
+    "validator": "^13.6.0"
   },
   "devDependencies": {
     "eslint": "^7.27.0",
