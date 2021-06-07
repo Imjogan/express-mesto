@@ -1,4 +1,6 @@
 const User = require("../models/user");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const {
   defaultError,
   userNotFoundError,
@@ -40,11 +42,34 @@ module.exports.getUser = (req, res) => {
   })();
 };
 
-module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
+module.exports.getCurrentUser = (req, res) => {
   (async () => {
     try {
-      const user = await User.create({ name, about, avatar });
+      const currentUser = await User.findById(req.user._id);
+      res.status(statusCodeOk).send(currentUser);
+    } catch (err) {
+      if (err.name === "CastError") {
+        return res.status(statusCodeNotFound).send({
+          message: userNotFoundError,
+        });
+      }
+      res.status(statusCodeInternalServerError).send({ message: defaultError });
+    }
+  })();
+};
+
+module.exports.createUser = (req, res) => {
+  const { name, about, avatar, email, password } = req.body;
+  (async () => {
+    try {
+      const hash = await bcrypt.hash(password, 10);
+      const user = await User.create({
+        name,
+        about,
+        avatar,
+        email,
+        password: hash,
+      });
       res.status(statusCodeCreated).send(user);
     } catch (err) {
       if (err.name === "ValidationError") {
@@ -111,6 +136,33 @@ module.exports.updateAvatar = (req, res) => {
         });
       }
       res.status(statusCodeInternalServerError).send({ message: defaultError });
+    }
+  })();
+};
+
+module.exports.login = (req, res) => {
+  const { password, email } = req.body;
+  (async () => {
+    try {
+      const user = await User.findOne({ email }).select("+password");
+      if (!user) {
+        return Promise.reject(new Error("Неправильные почта или пароль"));
+      }
+      const matched = await bcrypt.compare(password, user.password);
+      if (!matched) {
+        return Promise.reject(new Error("Неправильные почта или пароль"));
+      }
+      const token = jwt.sign({ _id: user._id }, "some-secret-key", {
+        expiresIn: "7d",
+      });
+      res
+        .cookie("jwt", token, {
+          maxAge: 3600000 * 24 * 7,
+          httpOnly: true,
+        })
+        .send(token);
+    } catch (err) {
+      res.status(401).send({ message: err.message });
     }
   })();
 };

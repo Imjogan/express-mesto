@@ -2,28 +2,26 @@ const {
   requestedResourceNotFoundError,
   statusCodeNotFound,
 } = require("./utils/errors");
+const { login, createUser } = require("./controllers/users");
+const auth = require("./middlewares/auth");
 const { mongoosePreset } = require("./utils/constants");
 const path = require("path");
 const express = require("express");
+const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const { PORT = 3000 } = process.env;
 const app = express();
+app.use(cookieParser());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 mongoose.connect("mongodb://localhost:27017/mestodb", mongoosePreset);
 
-// хардкод
-app.use((req, res, next) => {
-  req.user = {
-    _id: "60ae21355fe7f80f805b733b",
-  };
-
-  next();
-});
-
+app.post("/signin", login);
+app.post("/signup", createUser);
+app.use(auth);
 app.use("/users", require("./routes/users"));
 app.use("/cards", require("./routes/cards"));
 

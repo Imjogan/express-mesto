@@ -42,16 +42,20 @@ module.exports.createCard = (req, res) => {
 
 module.exports.deleteCard = (req, res) => {
   (async () => {
-    try {
-      const card = await Card.findByIdAndRemove(req.params.cardId);
-      res.status(statusCodeOk).send(card);
-    } catch (err) {
-      if (err.name === "CastError") {
-        return res.status(statusCodeNotFound).send({
-          message: cardNonExistentError,
-        });
+    if (req.user._id === card.owner.equals(req.user._id)) {
+      try {
+        const card = await Card.findByIdAndRemove(req.params.cardId);
+        res.status(statusCodeOk).send(card);
+      } catch (err) {
+        if (err.name === "CastError") {
+          return res.status(statusCodeNotFound).send({
+            message: cardNonExistentError,
+          });
+        }
+        res.status(statusCodeInternalServerError).send({ message: defaultError });
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+    } else {
+      res.status(400).send({ message: "Недостаточно прав для удаления чужих данных" });
     }
   })();
 };
