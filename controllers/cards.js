@@ -1,4 +1,5 @@
 const Card = require("../models/card");
+const NotFoundError = require('./errors/not-found-err');
 const {
   defaultError,
   incorrectCardDataError,
