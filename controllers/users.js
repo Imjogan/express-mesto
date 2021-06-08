@@ -3,27 +3,26 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const AuthError = require("../errors/auth-err");
 const NotFoundError = require("../errors/not-found-err");
+const BadRequestError = require("../errors/bad-request-err");
+const ConflictError = require("../errors/conflict-err");
+
 const {
-  defaultError,
+  conflictEmailError,
   userNotFoundError,
   incorrectUserDataError,
   incorrectProfileDataError,
   incorrectAvatarDataError,
   userNonExistentError,
-  statusCodeOk,
-  statusCodeCreated,
-  statusCodeBadRequest,
-  statusCodeNotFound,
-  statusCodeInternalServerError,
+  wrongEmailPassword,
 } = require("../utils/errors");
 
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   (async () => {
     try {
       const users = await User.find({});
-      res.status(statusCodeOk).send(users);
+      res.status(200).send(users);
     } catch (err) {
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
@@ -32,37 +31,31 @@ module.exports.getUser = (req, res, next) => {
   (async () => {
     try {
       const user = await User.findById(req.params.userId);
-      res.status(statusCodeOk).send(user);
+      res.status(200).send(user);
     } catch (err) {
       if (err.name === "CastError") {
-        // return res.status(statusCodeNotFound).send({
-        //   message: userNotFoundError,
-        // });
         next(new NotFoundError(userNotFoundError));
       }
-      // res.status(statusCodeInternalServerError).send({ message: defaultError });
-      // next(new NotFoundError("Пользователь не найден"));
+      next(err);
     }
   })();
 };
 
-module.exports.getCurrentUser = (req, res) => {
+module.exports.getCurrentUser = (req, res, next) => {
   (async () => {
     try {
       const currentUser = await User.findById(req.user._id);
-      res.status(statusCodeOk).send(currentUser);
+      res.status(200).send(currentUser);
     } catch (err) {
       if (err.name === "CastError") {
-        return res.status(statusCodeNotFound).send({
-          message: userNotFoundError,
-        });
+        next(new NotFoundError(userNotFoundError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
 
-module.exports.createUser = (req, res) => {
+module.exports.createUser = (req, res, next) => {
   const { name, about, avatar, email, password } = req.body;
   (async () => {
     try {
@@ -74,21 +67,19 @@ module.exports.createUser = (req, res) => {
         email,
         password: hash,
       });
-      res.status(statusCodeCreated).send(user);
+      res.status(201).send(user);
     } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(statusCodeBadRequest).send({
-          message: incorrectUserDataError,
-        });
+        next(new BadRequestError(incorrectUserDataError));
       } else if (err.name === "MongoError" && err.code === 11000) {
-        // Обработка ошибки
+        next(new ConflictError(conflictEmailError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
 
-module.exports.updateUser = (req, res) => {
+module.exports.updateUser = (req, res, next) => {
   const { name, about } = req.body;
   (async () => {
     try {
@@ -101,23 +92,19 @@ module.exports.updateUser = (req, res) => {
           upsert: true,
         }
       );
-      res.status(statusCodeOk).send(user);
+      res.status(200).send(user);
     } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(statusCodeBadRequest).send({
-          message: incorrectProfileDataError,
-        });
+        next(new BadRequestError(incorrectProfileDataError));
       } else if (err.name === "CastError") {
-        return res.status(statusCodeNotFound).send({
-          message: userNonExistentError,
-        });
+        next(new NotFoundError(userNonExistentError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
 
-module.exports.updateAvatar = (req, res) => {
+module.exports.updateAvatar = (req, res, next) => {
   const { avatar } = req.body;
   (async () => {
     try {
@@ -130,18 +117,14 @@ module.exports.updateAvatar = (req, res) => {
           upsert: true,
         }
       );
-      res.status(statusCodeOk).send(user);
+      res.status(200).send(user);
     } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(statusCodeBadRequest).send({
-          message: incorrectAvatarDataError,
-        });
+        next(new BadRequestError(incorrectAvatarDataError));
       } else if (err.name === "CastError") {
-        return res.status(statusCodeNotFound).send({
-          message: userNonExistentError,
-        });
+        next(new NotFoundError(userNonExistentError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
@@ -152,11 +135,11 @@ module.exports.login = (req, res, next) => {
     try {
       const user = await User.findOne({ email }).select("+password");
       if (!user) {
-        throw new AuthError("Неправильные почта или пароль");
+        throw new AuthError(wrongEmailPassword);
       }
       const matched = await bcrypt.compare(password, user.password);
       if (!matched) {
-        throw new AuthError("Неправильные почта или пароль");
+        throw new AuthError(wrongEmailPassword);
       }
       const token = jwt.sign({ _id: user._id }, "some-secret-key", {
         expiresIn: "7d",

@@ -1,67 +1,61 @@
 const Card = require("../models/card");
-const NotFoundError = require('../errors/not-found-err');
+const NotFoundError = require("../errors/not-found-err");
+const BadRequestError = require("../errors/bad-request-err");
+const ForbiddenError = require("../errors/forbidden-err");
+
 const {
-  defaultError,
   incorrectCardDataError,
   cardNonExistentError,
   incorrectLikeDataError,
   incorrectDislikeDataError,
-  statusCodeOk,
-  statusCodeCreated,
-  statusCodeBadRequest,
-  statusCodeNotFound,
-  statusCodeInternalServerError,
+  insufficientRights,
 } = require("../utils/errors");
 
-module.exports.getCards = (req, res) => {
+module.exports.getCards = (req, res, next) => {
   (async () => {
     try {
       const cards = await Card.find({}).populate(["owner", "likes"]);
-      res.status(statusCodeOk).send(cards);
+      res.status(200).send(cards);
     } catch (err) {
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
 
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
   (async () => {
     try {
       const card = await Card.create({ name, link, owner: req.user._id });
-      res.status(statusCodeCreated).send(card);
+      res.status(201).send(card);
     } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(statusCodeBadRequest).send({
-          message: incorrectCardDataError,
-        });
+        next(new BadRequestError(incorrectCardDataError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
 
-module.exports.deleteCard = (req, res) => {
+module.exports.deleteCard = (req, res, next) => {
   (async () => {
     if (req.user._id === card.owner.equals(req.user._id)) {
       try {
         const card = await Card.findByIdAndRemove(req.params.cardId);
-        res.status(statusCodeOk).send(card);
+        res.status(200).send(card);
       } catch (err) {
         if (err.name === "CastError") {
-          return res.status(statusCodeNotFound).send({
-            message: cardNonExistentError,
-          });
+          next(new NotFoundError(cardNonExistentError));
         }
-        res.status(statusCodeInternalServerError).send({ message: defaultError });
+        next(err);
       }
     } else {
-      res.status(403).send({ message: "Недостаточно прав для удаления чужих данных" });
+      next(new ForbiddenError(insufficientRights));
     }
   })();
 };
 
-module.exports.likeCard = (req, res) => {
+module.exports.likeCard = (req, res, next) => {
   (async () => {
     try {
       const card = await Card.findByIdAndUpdate(
@@ -69,19 +63,17 @@ module.exports.likeCard = (req, res) => {
         { $addToSet: { likes: req.user._id } },
         { new: true }
       ).populate("likes");
-      res.status(statusCodeOk).send(card);
+      res.status(200).send(card);
     } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(statusCodeBadRequest).send({
-          message: incorrectLikeDataError,
-        });
+        next(new BadRequestError(incorrectLikeDataError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
 
-module.exports.dislikeCard = (req, res) => {
+module.exports.dislikeCard = (req, res, next) => {
   (async () => {
     try {
       const card = await Card.findByIdAndUpdate(
@@ -89,14 +81,12 @@ module.exports.dislikeCard = (req, res) => {
         { $pull: { likes: req.user._id } },
         { new: true }
       ).populate("likes");
-      res.status(statusCodeOk).send(card);
+      res.status(200).send(card);
     } catch (err) {
       if (err.name === "ValidationError") {
-        return res.status(statusCodeBadRequest).send({
-          message: incorrectDislikeDataError,
-        });
+        next(new BadRequestError(incorrectDislikeDataError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      next(err);
     }
   })();
 };
