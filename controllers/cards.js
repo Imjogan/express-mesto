@@ -1,5 +1,5 @@
 const Card = require("../models/card");
-const NotFoundError = require('./errors/not-found-err');
+const NotFoundError = require('../errors/not-found-err');
 const {
   defaultError,
   incorrectCardDataError,
@@ -56,7 +56,7 @@ module.exports.deleteCard = (req, res) => {
         res.status(statusCodeInternalServerError).send({ message: defaultError });
       }
     } else {
-      res.status(400).send({ message: "Недостаточно прав для удаления чужих данных" });
+      res.status(403).send({ message: "Недостаточно прав для удаления чужих данных" });
     }
   })();
 };

@@ -31,6 +31,13 @@ app.use((req, res) => {
     .send({ message: requestedResourceNotFoundError });
 });
 
+app.use((err, req, res, next) => {
+  const { statusCode = 500, message } = err;
+  res.status(statusCode).send({
+    message: statusCode === 500 ? "На сервере произошла ошибка" : message,
+  });
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);

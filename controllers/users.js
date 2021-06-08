@@ -1,6 +1,8 @@
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const AuthError = require("../errors/auth-err");
+const NotFoundError = require("../errors/not-found-err");
 const {
   defaultError,
   userNotFoundError,
@@ -26,18 +28,20 @@ module.exports.getUsers = (req, res) => {
   })();
 };
 
-module.exports.getUser = (req, res) => {
+module.exports.getUser = (req, res, next) => {
   (async () => {
     try {
       const user = await User.findById(req.params.userId);
       res.status(statusCodeOk).send(user);
     } catch (err) {
       if (err.name === "CastError") {
-        return res.status(statusCodeNotFound).send({
-          message: userNotFoundError,
-        });
+        // return res.status(statusCodeNotFound).send({
+        //   message: userNotFoundError,
+        // });
+        next(new NotFoundError(userNotFoundError));
       }
-      res.status(statusCodeInternalServerError).send({ message: defaultError });
+      // res.status(statusCodeInternalServerError).send({ message: defaultError });
+      // next(new NotFoundError("Пользователь не найден"));
     }
   })();
 };
@@ -76,6 +80,8 @@ module.exports.createUser = (req, res) => {
         return res.status(statusCodeBadRequest).send({
           message: incorrectUserDataError,
         });
+      } else if (err.name === "MongoError" && err.code === 11000) {
+        // Обработка ошибки
       }
       res.status(statusCodeInternalServerError).send({ message: defaultError });
     }
@@ -140,17 +146,17 @@ module.exports.updateAvatar = (req, res) => {
   })();
 };
 
-module.exports.login = (req, res) => {
+module.exports.login = (req, res, next) => {
   const { password, email } = req.body;
   (async () => {
     try {
       const user = await User.findOne({ email }).select("+password");
       if (!user) {
-        return Promise.reject(new Error("Неправильные почта или пароль"));
+        throw new AuthError("Неправильные почта или пароль");
       }
       const matched = await bcrypt.compare(password, user.password);
       if (!matched) {
-        return Promise.reject(new Error("Неправильные почта или пароль"));
+        throw new AuthError("Неправильные почта или пароль");
       }
       const token = jwt.sign({ _id: user._id }, "some-secret-key", {
         expiresIn: "7d",
@@ -162,7 +168,7 @@ module.exports.login = (req, res) => {
         })
         .send(token);
     } catch (err) {
-      res.status(401).send({ message: err.message });
+      next(err);
     }
   })();
 };
