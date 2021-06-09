@@ -5,7 +5,7 @@ const ForbiddenError = require("../errors/forbidden-err");
 
 const {
   incorrectCardDataError,
-  cardNonExistentError,
+  cardNotFoundError,
   incorrectLikeDataError,
   incorrectDislikeDataError,
   insufficientRights,
@@ -39,18 +39,22 @@ module.exports.createCard = (req, res, next) => {
 
 module.exports.deleteCard = (req, res, next) => {
   (async () => {
-    if (req.user._id === card.owner.equals(req.user._id)) {
-      try {
-        const card = await Card.findByIdAndRemove(req.params.cardId);
-        res.status(200).send(card);
-      } catch (err) {
-        if (err.name === "CastError") {
-          next(new NotFoundError(cardNonExistentError));
-        }
-        next(err);
+    try {
+      const card = await Card.findById(req.params.cardId).orFail(
+        new Error("NotFound")
+      );
+      if (!card.owner.equals(req.user._id)) {
+        throw new ForbiddenError(insufficientRights);
       }
-    } else {
-      next(new ForbiddenError(insufficientRights));
+      const userCard = await Card.findByIdAndRemove(req.params.cardId);
+      res.status(200).send(userCard);
+    } catch (err) {
+      if (err.message === "NotFound") {
+        next(new NotFoundError(cardNotFoundError));
+      } else if (err.name === "CastError") {
+        next(new BadRequestError(incorrectCardDataError));
+      }
+      next(err);
     }
   })();
 };
@@ -62,10 +66,14 @@ module.exports.likeCard = (req, res, next) => {
         req.params.cardId,
         { $addToSet: { likes: req.user._id } },
         { new: true }
-      ).populate("likes");
+      )
+        .populate("likes")
+        .orFail(new Error("NotFound"));
       res.status(200).send(card);
     } catch (err) {
-      if (err.name === "ValidationError") {
+      if (err.message === "NotFound") {
+        next(new NotFoundError(cardNotFoundError));
+      } else if (err.name === "CastError") {
         next(new BadRequestError(incorrectLikeDataError));
       }
       next(err);
@@ -80,10 +88,14 @@ module.exports.dislikeCard = (req, res, next) => {
         req.params.cardId,
         { $pull: { likes: req.user._id } },
         { new: true }
-      ).populate("likes");
+      )
+        .populate("likes")
+        .orFail(new Error("NotFound"));
       res.status(200).send(card);
     } catch (err) {
-      if (err.name === "ValidationError") {
+      if (err.message === "NotFound") {
+        next(new NotFoundError(cardNotFoundError));
+      } else if (err.name === "CastError") {
         next(new BadRequestError(incorrectDislikeDataError));
       }
       next(err);

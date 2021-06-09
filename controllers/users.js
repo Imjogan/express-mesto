@@ -12,7 +12,6 @@ const {
   incorrectUserDataError,
   incorrectProfileDataError,
   incorrectAvatarDataError,
-  userNonExistentError,
   wrongEmailPassword,
 } = require("../utils/errors");
 
@@ -30,11 +29,15 @@ module.exports.getUsers = (req, res, next) => {
 module.exports.getUser = (req, res, next) => {
   (async () => {
     try {
-      const user = await User.findById(req.params.userId);
+      const user = await User.findById(req.params.userId).orFail(
+        new Error("NotFound")
+      );
       res.status(200).send(user);
     } catch (err) {
-      if (err.name === "CastError") {
+      if (err.message === "NotFound") {
         next(new NotFoundError(userNotFoundError));
+      } else if (err.name === "CastError") {
+        next(new BadRequestError(incorrectUserDataError));
       }
       next(err);
     }
@@ -44,11 +47,15 @@ module.exports.getUser = (req, res, next) => {
 module.exports.getCurrentUser = (req, res, next) => {
   (async () => {
     try {
-      const currentUser = await User.findById(req.user._id);
+      const currentUser = await User.findById(req.user._id).orFail(
+        new Error("NotFound")
+      );
       res.status(200).send(currentUser);
     } catch (err) {
-      if (err.name === "CastError") {
+      if (err.message === "NotFound") {
         next(new NotFoundError(userNotFoundError));
+      } else if (err.name === "CastError") {
+        next(new BadRequestError(incorrectUserDataError));
       }
       next(err);
     }
@@ -67,7 +74,7 @@ module.exports.createUser = (req, res, next) => {
         email,
         password: hash,
       });
-      res.status(201).send(user);
+      res.status(201).send({ name, about, avatar, email });
     } catch (err) {
       if (err.name === "ValidationError") {
         next(new BadRequestError(incorrectUserDataError));
@@ -89,15 +96,14 @@ module.exports.updateUser = (req, res, next) => {
         {
           new: true,
           runValidators: true,
-          upsert: true,
         }
-      );
+      ).orFail(new Error("NotFound"));
       res.status(200).send(user);
     } catch (err) {
-      if (err.name === "ValidationError") {
-        next(new BadRequestError(incorrectProfileDataError));
+      if (err.message === "NotFound") {
+        next(new NotFoundError(userNotFoundError));
       } else if (err.name === "CastError") {
-        next(new NotFoundError(userNonExistentError));
+        next(new BadRequestError(incorrectProfileDataError));
       }
       next(err);
     }
@@ -114,15 +120,14 @@ module.exports.updateAvatar = (req, res, next) => {
         {
           new: true,
           runValidators: true,
-          upsert: true,
         }
-      );
+      ).orFail(new Error("NotFound"));
       res.status(200).send(user);
     } catch (err) {
-      if (err.name === "ValidationError") {
-        next(new BadRequestError(incorrectAvatarDataError));
+      if (err.message === "NotFound") {
+        next(new NotFoundError(userNotFoundError));
       } else if (err.name === "CastError") {
-        next(new NotFoundError(userNonExistentError));
+        next(new BadRequestError(incorrectAvatarDataError));
       }
       next(err);
     }
@@ -144,12 +149,7 @@ module.exports.login = (req, res, next) => {
       const token = jwt.sign({ _id: user._id }, "some-secret-key", {
         expiresIn: "7d",
       });
-      res
-        .cookie("jwt", token, {
-          maxAge: 3600000 * 24 * 7,
-          httpOnly: true,
-        })
-        .send(token);
+      res.status(200).send({ token });
     } catch (err) {
       next(err);
     }
