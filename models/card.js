@@ -1,5 +1,6 @@
-const mongoose = require("mongoose");
-const { minLength, maxLength, regUrl } = require("../utils/constants");
+const mongoose = require('mongoose');
+const validator = require('validator');
+const { minLength, maxLength } = require('../utils/constants');
 
 const cardSchema = new mongoose.Schema(
   {
@@ -13,22 +14,22 @@ const cardSchema = new mongoose.Schema(
       type: String,
       validate: {
         validator(string) {
-          return regUrl(string);
+          return validator.isURL(string);
         },
-        message: "Вы должны указать ссылку",
+        message: 'Вы должны указать ссылку',
       },
       required: true,
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
+      ref: 'user',
       required: true,
     },
     likes: {
       type: [
         {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "user",
+          ref: 'user',
         },
       ],
       default: [],
@@ -38,7 +39,7 @@ const cardSchema = new mongoose.Schema(
       default: Date.now,
     },
   },
-  { versionKey: false }
+  { versionKey: false },
 );
 
-module.exports = mongoose.model("card", cardSchema);
+module.exports = mongoose.model('card', cardSchema);
