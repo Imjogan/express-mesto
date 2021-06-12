@@ -7,6 +7,7 @@ const { requestedResourceNotFoundError } = require('./utils/errors');
 const { login, createUser } = require('./controllers/users');
 const auth = require('./middlewares/auth');
 const { mongoosePreset } = require('./utils/constants');
+const NotFoundError = require('./errors/not-found-err');
 
 const { PORT = 3000 } = process.env;
 const app = express();
@@ -48,13 +49,13 @@ app.use(auth);
 app.use('/users', require('./routes/users'));
 app.use('/cards', require('./routes/cards'));
 
-app.use((req, res) => {
-  res.status(404).send({ message: requestedResourceNotFoundError });
+app.use((req, res, next) => {
+  next(new NotFoundError(requestedResourceNotFoundError));
 });
 
 app.use(errors());
 
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
   const { statusCode = 500, message } = err;
   res.status(statusCode).send({
     message:
